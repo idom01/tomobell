@@ -1,0 +1,10 @@
+csv_path,alice_basis,bob_basis
+data/ZZ.csv,Z,Z
+data/ZX.csv,Z,X
+data/ZY.csv,Z,Y
+data/XZ.csv,X,Z
+data/XX.csv,X,X
+data/XY.csv,X,Y
+data/YZ.csv,Y,Z
+data/YX.csv,Y,X
+data/YY.csv,Y,Y
