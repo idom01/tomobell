@@ -15,9 +15,44 @@ OUT_DIR = "saved_threshold_plots_separate"
 PEAK_MERGE_FRAMES = 5
 NORMALIZE_BY_MAX = True
 TARGET_THRESHOLD = 0.4
+
 CROP_PLOT_FRAMES = {
     "videos/10.mp4": 1090,
 }
+
+# Angle order:
+# a,b ; a,b' ; a,b_p ; a,b'_p ;
+# a',b ; a',b' ; ...
+ANGLE_VALUES = {
+    1:  (-45, -22.5),
+    2:  (-45,  22.5),
+    3:  (-45,  67.5),
+    4:  (-45, 112.5),
+    5:  (0,   -22.5),
+    6:  (0,    22.5),
+    7:  (0,    67.5),
+    8:  (0,   112.5),
+    9:  (45,  -22.5),
+    10: (45,   22.5),
+    11: (45,   67.5),
+    12: (45,  112.5),
+    13: (90,  -22.5),
+    14: (90,   22.5),
+    15: (90,   67.5),
+    16: (90,  112.5),
+}
+
+plt.rcParams.update({
+    "font.size": 13,
+    "axes.labelsize": 14,
+    "axes.titlesize": 15,
+    "xtick.labelsize": 12,
+    "ytick.labelsize": 12,
+    "legend.fontsize": 12,
+    "axes.linewidth": 1.2,
+    "lines.linewidth": 1.5,
+    "savefig.dpi": 300,
+})
 
 
 def get_frame_intensity(video_path, roi):
@@ -147,38 +182,9 @@ def normalize_by_threshold(y, threshold):
     return y * (TARGET_THRESHOLD / threshold)
 
 
-def save_single_plot(video_path, side_name, y_raw, threshold, out_path):
-    y = normalize_by_threshold(y_raw, threshold)
-    peaks = find_peaks_grouped(y, TARGET_THRESHOLD, PEAK_MERGE_FRAMES)
-
-    fig, ax = plt.subplots(figsize=(11, 5))
-
-    ax.plot(y, label=f"{side_name} intensity")
-    ax.axhline(
-        TARGET_THRESHOLD,
-        linestyle="--",
-        label=f"threshold = {TARGET_THRESHOLD}",
-    )
-
-    ax.scatter(
-        peaks,
-        y[peaks],
-        marker="o",
-        label=f"detected peaks: {len(peaks)}",
-    )
-
-    ax.set_title(
-        f"{side_name} | {video_path} | "
-        f"original threshold={threshold:.3f}"
-    )
-    ax.set_xlabel("Frame")
-    ax.set_ylabel("Intensity normalized so threshold = 0.4")
-    ax.legend()
-    ax.grid(True, alpha=0.3)
-
-    fig.tight_layout()
-    fig.savefig(out_path, dpi=200)
-    plt.close(fig)
+def angle_title(side_name, video_number):
+    alpha, beta = ANGLE_VALUES[video_number]
+    return rf"{side_name}: $\alpha={alpha}^\circ,\ \beta={beta}^\circ$"
 
 
 def main():
@@ -192,27 +198,14 @@ def main():
     rois = load_or_create_rois()
     thresholds = load_thresholds()
 
-        # --------------------------------------------------------
-    # FIRST PASS:
-    # compute global y-limits USING CROPPED DATA
-    # --------------------------------------------------------
-
     global_min = np.inf
     global_max = -np.inf
 
     cached_data = {}
 
     for video_path in VIDEOS:
-
-        alice_y = get_frame_intensity(
-            video_path,
-            rois[video_path]["alice"]
-        )
-
-        bob_y = get_frame_intensity(
-            video_path,
-            rois[video_path]["bob"]
-        )
+        alice_y = get_frame_intensity(video_path, rois[video_path]["alice"])
+        bob_y = get_frame_intensity(video_path, rois[video_path]["bob"])
 
         alice_thr = thresholds[video_path]["alice"]
         bob_thr = thresholds[video_path]["bob"]
@@ -220,31 +213,14 @@ def main():
         alice_norm = normalize_by_threshold(alice_y, alice_thr)
         bob_norm = normalize_by_threshold(bob_y, bob_thr)
 
-        # apply crop ONLY for axis determination
-        plot_until_alice = CROP_PLOT_FRAMES.get(
-            video_path,
-            len(alice_norm)
-        )
-
-        plot_until_bob = CROP_PLOT_FRAMES.get(
-            video_path,
-            len(bob_norm)
-        )
+        plot_until_alice = CROP_PLOT_FRAMES.get(video_path, len(alice_norm))
+        plot_until_bob = CROP_PLOT_FRAMES.get(video_path, len(bob_norm))
 
         alice_for_limits = alice_norm[:plot_until_alice]
         bob_for_limits = bob_norm[:plot_until_bob]
 
-        global_min = min(
-            global_min,
-            alice_for_limits.min(),
-            bob_for_limits.min()
-        )
-
-        global_max = max(
-            global_max,
-            alice_for_limits.max(),
-            bob_for_limits.max()
-        )
+        global_min = min(global_min, alice_for_limits.min(), bob_for_limits.min())
+        global_max = max(global_max, alice_for_limits.max(), bob_for_limits.max())
 
         cached_data[video_path] = {
             "alice_y": alice_y,
@@ -254,20 +230,10 @@ def main():
         }
 
     y_margin = 0.05 * (global_max - global_min)
-
     global_ymin = global_min - y_margin
     global_ymax = global_max + y_margin
 
-    print("\nGlobal y-axis range:")
-    print(global_ymin, global_ymax)
-
-        # --------------------------------------------------------
-    # SECOND PASS:
-    # save all plots using same global axes
-    # --------------------------------------------------------
-
     for video_path in VIDEOS:
-
         data = cached_data[video_path]
 
         alice_y = data["alice_y"]
@@ -296,12 +262,12 @@ def main():
         plot_until = CROP_PLOT_FRAMES.get(video_path, len(y))
         y_plot = y[:plot_until]
 
-        ax.plot(y_plot, label="Alice intensity")
+        ax.plot(y_plot, label="intensity")
 
         ax.axhline(
             TARGET_THRESHOLD,
             linestyle="--",
-            label=f"threshold = {TARGET_THRESHOLD}"
+            label="threshold = 0.4"
         )
 
         peaks_plot = peaks[peaks < plot_until]
@@ -309,25 +275,21 @@ def main():
         ax.scatter(
             peaks_plot,
             y[peaks_plot],
-            marker="o",
-            label=f"detected peaks: {len(peaks_plot)}"
+            marker="o"
         )
 
         ax.set_ylim(global_ymin, global_ymax)
 
-        ax.set_title(
-            f"Alice | {video_path} | "
-            f"original threshold={alice_thr:.3f}"
-        )
-
+        ax.set_title(angle_title("Alice", video_number))
         ax.set_xlabel("Frame")
         ax.set_ylabel("Normalized intensity")
 
         ax.grid(True, alpha=0.3)
-        ax.legend()
+        ax.legend(frameon=False)
+        ax.tick_params(direction="in", top=True, right=True)
 
         fig.tight_layout()
-        fig.savefig(alice_out, dpi=200)
+        fig.savefig(alice_out, dpi=300)
         plt.close(fig)
 
         # ---------------- BOB ----------------
@@ -345,12 +307,12 @@ def main():
         plot_until = CROP_PLOT_FRAMES.get(video_path, len(y))
         y_plot = y[:plot_until]
 
-        ax.plot(y_plot, label="Bob intensity")
+        ax.plot(y_plot, label="intensity")
 
         ax.axhline(
             TARGET_THRESHOLD,
             linestyle="--",
-            label=f"threshold = {TARGET_THRESHOLD}"
+            label="threshold = 0.4"
         )
 
         peaks_plot = peaks[peaks < plot_until]
@@ -359,24 +321,20 @@ def main():
             peaks_plot,
             y[peaks_plot],
             marker="o",
-            label=f"detected peaks: {len(peaks_plot)}"
         )
 
         ax.set_ylim(global_ymin, global_ymax)
 
-        ax.set_title(
-            f"Bob | {video_path} | "
-            f"original threshold={bob_thr:.3f}"
-        )
-
+        ax.set_title(angle_title("Bob", video_number))
         ax.set_xlabel("Frame")
         ax.set_ylabel("Normalized intensity")
 
         ax.grid(True, alpha=0.3)
-        ax.legend()
+        ax.legend(frameon=False)
+        ax.tick_params(direction="in", top=True, right=True)
 
         fig.tight_layout()
-        fig.savefig(bob_out, dpi=200)
+        fig.savefig(bob_out, dpi=300)
         plt.close(fig)
 
         print(f"Saved {alice_out}")
