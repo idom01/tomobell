@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-CSV_PATH = "good_data.csv"
+CSV_PATH = "qst_pulses_only50_wow.csv"
 
 df = pd.read_csv(CSV_PATH)
 
@@ -42,8 +42,8 @@ axes[0].bar(
     label="V = 0",
 )
 
-axes[0].set_title("Alice normalized intensities")
-axes[0].set_ylabel("Normalized intensity")
+axes[0].set_title("Alice Normalized Intensities")
+axes[0].set_ylabel("Normalized Intensity")
 axes[0].legend()
 axes[0].set_ylim(0, 1.05)
 
@@ -65,16 +65,18 @@ axes[1].bar(
     label="V = 0",
 )
 
-axes[1].set_title("Bob normalized intensities")
+axes[1].set_title("Bob Normalized Intensities")
 axes[1].set_xlabel("Pulse")
-axes[1].set_ylabel("Normalized intensity")
+axes[1].set_ylabel("Normalized Intensity")
 axes[1].legend()
 axes[1].set_ylim(0, 1.05)
 
 
 # Pulse labels
 axes[1].set_xticks(x)
-axes[1].set_xticklabels(df["pulse"])
+# axes[0].set_xlim(0.5, len(df) + 0.5)
+# axes[1].set_xlim(0.5, len(df) + 0.5)
+axes[1].set_xticklabels(df["pulse"] + 1)
 
 plt.tight_layout()
 plt.show()
