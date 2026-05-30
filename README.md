@@ -1,4 +1,3 @@
-# tomobell
 # Classical Emulation of Quantum State Tomography and Bell Test
 
 ## Overview
